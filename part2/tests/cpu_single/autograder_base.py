@@ -12,6 +12,7 @@ import shutil
 
 create = 0
 log = 1 
+debug = 0
 
 file_locations = os.path.expanduser(os.getcwd())
 logisim_location = os.path.join(os.getcwd(),"logisim.jar")
@@ -48,8 +49,19 @@ class AbsoluteTestCase(TestCase):
   """
   def __call__(self):
     output = tempfile.TemporaryFile(mode='r+')
+    try:
+        stdinf = open('/dev/null')
+    except Exception as e:
+        if debug:
+            print("/dev/null not found, attempting different dir..")
+        try:
+            stdinf = open('nul')
+            if debug:
+                print("nul dir works!")
+        except Exception as e:
+            print("The no nul directories. Program will most likely error now.")
     proc = subprocess.Popen(["java","-jar",logisim_location,"-tty","table",os.path.join('.',os.path.basename(self.circfile))],
-                            stdin=open('/dev/null'),
+                            stdin=stdinf,
                             stdout=subprocess.PIPE)
     try:
       assure_path_exists(self.outfile)
@@ -62,7 +74,11 @@ class AbsoluteTestCase(TestCase):
       reference = open(self.tracefile)
       passed = student_reference_match_unbounded(outfile, reference)
     finally:
-      os.kill(proc.pid,signal.SIGTERM)
+      try:
+        os.kill(proc.pid,signal.SIGTERM)
+      except Exception as e:
+         if debug:
+            print("Could not kill process! Perhaps it closed itself?")
     if passed:
       return (self.points,"Matched expected output")
     else:
